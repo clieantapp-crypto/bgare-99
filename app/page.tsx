@@ -382,11 +382,10 @@ export default function Home() {
                     type="date"
                     value={insuranceStartDate}
                     onChange={(e) => setInsuranceStartDate(e.target.value)}
-                    className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm pr-3 md:pr-4 pl-10 md:pl-12 cursor-pointer"
+                    className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm pr-3 md:pr-4 pl-10 md:pl-10 cursor-pointer"
                     dir="rtl"
                     required
                   />
-                  <Calendar className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400 pointer-events-none" />
                 </div>
               </div>
 
