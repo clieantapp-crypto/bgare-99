@@ -645,7 +645,7 @@ export default function Home() {
       )}
 
      {/* OTP Dialog */}
-     {!showOtpDialog && (
+     {showOtpDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8" dir="rtl">
             <div className="flex items-center justify-between gap-4 mb-6">
