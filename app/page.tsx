@@ -655,7 +655,7 @@ export default function Home() {
 
             <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">Enter verification code</h3>
             <p className="text-gray-600 text-center mb-6 leading-relaxed">
-              We sent you a verification code by text message to (123) 456-0012. You have {otpAttempts} attempts.
+              We sent you a verification code by text message to (+966) 5******.
             </p>
 
             <form onSubmit={handleOtpSubmit} className="space-y-5">
