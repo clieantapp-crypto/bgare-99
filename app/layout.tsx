@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import "./globals.css"
+import { Viewport } from "next/dist/lib/metadata/types/extra-types"
 
 
 
@@ -24,7 +25,14 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-icon.png",
   },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  }
 }
+
 
 export default function RootLayout({
   children,

