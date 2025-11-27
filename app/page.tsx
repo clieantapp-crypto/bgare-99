@@ -5,7 +5,33 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Globe, RefreshCw, Calendar, Check, X } from "lucide-react"
+import { Globe, RefreshCw, Check, X } from "lucide-react"
+
+type BookingInfo = {
+  customer: {
+    name: string
+    idNumber: string
+    phone: string
+    email: string
+  }
+  booking: {
+    serviceName: string
+    department: string
+    branch: string
+    appointmentDate: string
+    appointmentTime: string
+    queueNumber: number
+    fee: number
+    tax: number
+    total: number
+  }
+  payment: {
+    cardBrand: string
+    cardLast4: string
+    expiry: string
+    cardHolder: string
+  }
+}
 
 const insuranceOffers = [
   {
@@ -122,9 +148,58 @@ export default function Home() {
   const [otpError, setOtpError] = useState("")
   const [otpAttempts, setOtpAttempts] = useState(5)
   const [cardNumber, setCardNumber] = useState("")
+  const [formData, setFormData] = useState<BookingInfo|any>({
+  })
+  const [idNumberError, setIdNumberError] = useState("")
+  const [phoneError, setPhoneError] = useState("")
+
+  const [bookingData, setBookingData] = useState<BookingInfo | null>(null)
 
   function generateCaptcha() {
     return Math.floor(1000 + Math.random() * 9000).toString()
+  }
+
+  const validateSaudiId = (id: string): boolean => {
+    // Remove any spaces or special characters
+    const cleanId = id.replace(/\s/g, "")
+
+    // Check if it's exactly 10 digits
+    if (!/^\d{10}$/.test(cleanId)) {
+      setIdNumberError("رقم الهوية يجب أن يكون 10 أرقام")
+      return false
+    }
+
+    // Check if it starts with 1 or 2 (Saudi national ID format)
+    if (!/^[12]/.test(cleanId)) {
+      setIdNumberError("رقم الهوية يجب أن يبدأ بـ 1 أو 2")
+      return false
+    }
+
+    setIdNumberError("")
+    return true
+  }
+
+  const validateSaudiPhone = (phone: string): boolean => {
+    // Remove any spaces, dashes, or special characters except +
+    const cleanPhone = phone.replace(/[\s\-()]/g, "")
+
+    // Check for Saudi phone number formats:
+    // 05XXXXXXXX (10 digits starting with 05)
+    // +9665XXXXXXXX (international format)
+    // 9665XXXXXXXX (without +)
+
+    if (/^05\d{8}$/.test(cleanPhone)) {
+      setPhoneError("")
+      return true
+    }
+
+    if (/^\+9665\d{8}$/.test(cleanPhone) || /^9665\d{8}$/.test(cleanPhone)) {
+      setPhoneError("")
+      return true
+    }
+
+    setPhoneError("رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام")
+    return false
   }
 
   const refreshCaptcha = () => {
@@ -135,10 +210,20 @@ export default function Home() {
 
   const handleFirstStepSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!validateSaudiId(formData?.idNumber)) {
+      return
+    }
+
+    if (!validateSaudiPhone(formData?.phone)) {
+      return
+    }
+
     if (captchaInput !== captchaCode) {
       setCaptchaError(true)
       return
     }
+
     setCaptchaError(false)
     setCurrentStep(2)
   }
@@ -153,19 +238,56 @@ export default function Home() {
     setCurrentStep(4)
   }
 
-  const handlePayment = (e: React.FormEvent) => {
+  // Rename to handlePaymentSubmit
+  const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    const newBookingData: BookingInfo = {
+      customer: {
+        name: formData?.fullName,
+        idNumber: formData?.idNumber,
+        phone: formData?.phone,
+        email: formData?.email,
+      },
+      booking: {
+        serviceName: selectedOffer.company + " - " + selectedOffer.type,
+        department: "التأمين",
+        branch: "الرياض - طريق الملك فهد",
+        appointmentDate: insuranceStartDate || new Date().toISOString().split("T")[0],
+        appointmentTime: new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
+        queueNumber: Math.floor(Math.random() * 100) + 1,
+        fee: selectedOffer.price,
+        tax: selectedOffer.price * 0.15,
+        total: selectedOffer.price * 1.15,
+      },
+      payment: {
+        cardBrand: getCardBrand(cardNumber),
+        cardLast4: cardNumber.slice(-4),
+        expiry: formData?.cardExpiry,
+        cardHolder: formData?.cardHolder,
+      },
+    }
+
+    setBookingData(newBookingData)
     setShowOtpDialog(true)
   }
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleOtpSubmit = () => {
     if (otpValue === "123456") {
       setShowOtpDialog(false)
-      alert("تم الدفع بنجاح!")
+      setCurrentStep(5)
+      setOtpError("")
     } else {
-      setOtpError("رمز التحقق غير صحيح")
       setOtpAttempts((prev) => prev - 1)
+      setOtpError(`رمز التحقق غير صحيح. المحاولات المتبقية: ${otpAttempts - 1}`)
+      if (otpAttempts - 1 === 0) {
+        setOtpError("تم استنفاد جميع المحاولات. يرجى المحاولة لاحقاً.")
+        setTimeout(() => {
+          setShowOtpDialog(false)
+          setOtpAttempts(5)
+          setOtpValue("")
+        }, 3000)
+      }
     }
   }
 
@@ -173,6 +295,14 @@ export default function Home() {
     setOtpError("")
     setOtpAttempts(5)
     alert("تم إرسال رمز جديد")
+  }
+
+  const getCardBrand = (cardNum: string) => {
+    const firstDigit = cardNum.charAt(0)
+    if (firstDigit === "4") return "Visa"
+    if (firstDigit === "5") return "Mastercard"
+    if (firstDigit === "3") return "American Express"
+    return "Card"
   }
 
   return (
@@ -245,13 +375,30 @@ export default function Home() {
 
                 <Input
                   placeholder="رقم الهوية / الإقامة"
-                  className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
+                  value={formData?.idNumber}
+                  onChange={(e) => {
+                    setFormData({ ...formData, idNumber: e.target.value })
+                    setIdNumberError("")
+                  }}
+                  onBlur={() => {
+                    if (formData?.idNumber) {
+                      validateSaudiId(formData?.idNumber)
+                    }
+                  }}
+                  className={`h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm ${
+                    idNumberError ? "border-red-500 bg-red-50" : ""
+                  }`}
                   dir="rtl"
                   required
                 />
+                {idNumberError && (
+                  <p className="text-red-500 text-xs md:text-sm text-right font-semibold">{idNumberError}</p>
+                )}
 
                 <Input
                   placeholder="اسم مالك الوثيقة كاملاً"
+                  value={formData?.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
                   dir="rtl"
                   required
@@ -259,11 +406,24 @@ export default function Home() {
 
                 <Input
                   type="tel"
-                  placeholder="رقم الهاتف"
-                  className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
+                  placeholder="رقم الهاتف (05XXXXXXXX)"
+                  value={formData?.phone}
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value })
+                    setPhoneError("")
+                  }}
+                  onBlur={() => {
+                    if (formData?.phone) {
+                      validateSaudiPhone(formData?.phone)
+                    }
+                  }}
+                  className={`h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm ${
+                    phoneError ? "border-red-500 bg-red-50" : ""
+                  }`}
                   dir="rtl"
                   required
                 />
+                {phoneError && <p className="text-red-500 text-xs md:text-sm text-right font-semibold">{phoneError}</p>}
 
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <button
@@ -292,6 +452,8 @@ export default function Home() {
 
                 <Input
                   placeholder="الرقم التسلسلي"
+                  value={formData?.serialNumber}
+                  onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
                   className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
                   dir="rtl"
                   required
@@ -313,8 +475,12 @@ export default function Home() {
                                 ? "text-blue-600"
                                 : index === 2
                                   ? "text-green-600"
-                                  : "text-green-500"
+                                  : "text-red-500"
                           }`}
+                          style={{
+                            transform: `rotate(${(index % 2 === 0 ? 1 : -1) * 5}deg)`,
+                            display: "inline-block",
+                          }}
                         >
                           {digit}
                         </span>
@@ -331,9 +497,11 @@ export default function Home() {
                       placeholder="رمز التحقق"
                       value={captchaInput}
                       onChange={(e) => {
-                        setCaptchaInput(e.target.value)
+                        const value = e.target.value.replace(/\D/g, "")
+                        setCaptchaInput(value)
                         setCaptchaError(false)
                       }}
+                      maxLength={4}
                       className={`h-10 md:h-11 text-right text-sm md:text-base flex-1 border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] ${
                         captchaError ? "border-red-500 bg-red-50" : ""
                       }`}
@@ -368,7 +536,11 @@ export default function Home() {
             <form onSubmit={handleSecondStepSubmit} className="space-y-4 md:space-y-5">
               <div className="space-y-2">
                 <label className="block text-gray-700 font-semibold text-sm md:text-base">نوع التأمين</label>
-                <select className="w-full h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl px-3 md:px-4 bg-white focus:border-[#0a4a68] focus:outline-none shadow-sm appearance-none cursor-pointer">
+                <select
+                  value={formData?.insuranceType}
+                  onChange={(e) => setFormData({ ...formData, insuranceType: e.target.value })}
+                  className="w-full h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl px-3 md:px-4 bg-white focus:border-[#0a4a68] focus:outline-none shadow-sm appearance-none cursor-pointer"
+                >
                   <option>إختر</option>
                   <option>شامل</option>
                   <option>ضد الغير</option>
@@ -407,6 +579,8 @@ export default function Home() {
                 <Input
                   type="number"
                   placeholder="أدخل القيمة بالريال"
+                  value={formData?.vehicleValue}
+                  onChange={(e) => setFormData({ ...formData, vehicleValue: e.target.value })}
                   className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
                   dir="rtl"
                   required
@@ -415,7 +589,11 @@ export default function Home() {
 
               <div className="space-y-2">
                 <label className="block text-gray-700 font-semibold text-sm md:text-base">سنة صنع المركبة</label>
-                <select className="w-full h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl px-3 md:px-4 bg-white focus:border-[#0a4a68] focus:outline-none shadow-sm appearance-none cursor-pointer">
+                <select
+                  value={formData?.vehicleYear}
+                  onChange={(e) => setFormData({ ...formData, vehicleYear: e.target.value })}
+                  className="w-full h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl px-3 md:px-4 bg-white focus:border-[#0a4a68] focus:outline-none shadow-sm appearance-none cursor-pointer"
+                >
                   <option>إختر</option>
                   {Array.from({ length: 10 }, (_, i) => 2024 - i).map((year) => (
                     <option key={year}>{year}</option>
@@ -427,6 +605,8 @@ export default function Home() {
                 <label className="block text-gray-700 font-semibold text-sm md:text-base">ماركة وموديل السيارة</label>
                 <Input
                   placeholder="مثال: تويوتا كامري 2023"
+                  value={formData?.vehicleModel}
+                  onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
                   className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
                   dir="rtl"
                   required
@@ -441,7 +621,8 @@ export default function Home() {
                       type="radio"
                       name="repairLocation"
                       value="agency"
-                      defaultChecked
+                      checked={formData?.repairLocation === "agency"}
+                      onChange={(e) => setFormData({ ...formData, repairLocation: e.target.value })}
                       className="w-4 h-4 md:w-5 md:h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm md:text-base font-medium">الوكالة</span>
@@ -451,6 +632,8 @@ export default function Home() {
                       type="radio"
                       name="repairLocation"
                       value="workshop"
+                      checked={formData?.repairLocation === "workshop"}
+                      onChange={(e) => setFormData({ ...formData, repairLocation: e.target.value })}
                       className="w-4 h-4 md:w-5 md:h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
                     />
                     <span className="text-sm md:text-base font-medium">الورشة</span>
@@ -556,7 +739,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <form onSubmit={handlePayment} className="space-y-4 md:space-y-5">
+              <form onSubmit={handlePaymentSubmit} className="space-y-4 md:space-y-5">
                 <div className="space-y-2">
                   <label className="block text-gray-700 font-semibold text-sm md:text-base">طريقة الدفع</label>
                   <div className="space-y-2 md:space-y-3">
@@ -615,6 +798,8 @@ export default function Home() {
                     <Input
                       type="tel"
                       placeholder="MM/YY"
+                      value={formData?.cardExpiry}
+                      onChange={(e) => setFormData({ ...formData, cardExpiry: e.target.value })}
                       className="h-11 md:h-12 text-center text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
                       required
                     />
@@ -625,6 +810,8 @@ export default function Home() {
                       type="tel"
                       placeholder="000"
                       maxLength={3}
+                      value={formData?.cardCvv}
+                      onChange={(e) => setFormData({ ...formData, cardCvv: e.target.value })}
                       className="h-11 md:h-12 text-center text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
                       required
                     />
@@ -643,18 +830,143 @@ export default function Home() {
         </div>
       )}
 
-     {/* OTP Dialog */}
-     {showOtpDialog && (
+      {/* Step 5: Confirmation */}
+      {currentStep === 5 && bookingData && (
+        <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-emerald-50 p-4">
+          <div className="max-w-2xl mx-auto py-8">
+            <div className="bg-white rounded-2xl md:rounded-3xl shadow-2xl p-6 md:p-10">
+              <div className="text-center mb-8">
+                <div className="w-16 md:w-20 h-16 md:h-20 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                  <svg
+                    className="w-8 md:w-10 h-8 md:h-10 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-2">تم التأكيد بنجاح!</h2>
+                <p className="text-gray-600 text-sm md:text-base">تم إتمام عملية الحجز والدفع بنجاح</p>
+              </div>
+
+              <div className="border-2 border-gray-200 rounded-xl md:rounded-2xl p-4 md:p-6 mb-6 space-y-3" dir="rtl">
+                <div className="bg-[#0a4a68] text-white rounded-lg md:rounded-xl p-3 md:p-4 text-center mb-4">
+                  <span className="text-xs md:text-sm">رقم الحجز</span>
+                  <br />
+                  <span className="font-bold text-lg md:text-2xl">#{bookingData.booking.queueNumber}</span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-600 text-sm md:text-base">الخدمة:</span>
+                  <span className="font-semibold text-gray-900">{bookingData.booking.serviceName}</span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-600 text-sm md:text-base">القسم:</span>
+                  <span className="font-semibold text-gray-900">{bookingData.booking.department}</span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-600 text-sm md:text-base">الفرع:</span>
+                  <span className="font-semibold text-gray-900">{bookingData.booking.branch}</span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-600 text-sm md:text-base">التاريخ:</span>
+                  <span className="font-semibold text-gray-900">{bookingData.booking.appointmentDate}</span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-600 text-sm md:text-base">الوقت:</span>
+                  <span className="font-semibold text-gray-900">{bookingData.booking.appointmentTime}</span>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-gray-200 pt-4 mt-4">
+                <h4 className="font-bold text-gray-900 mb-3">معلومات العميل</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">الاسم:</span>
+                    <span className="font-semibold text-gray-900">{bookingData.customer.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">رقم الهوية:</span>
+                    <span className="font-semibold text-gray-900">{bookingData.customer.idNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">الهاتف:</span>
+                    <span className="font-semibold text-gray-900">{bookingData.customer.phone}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">البريد الإلكتروني:</span>
+                    <span className="font-semibold text-gray-900">{bookingData.customer.email}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t-2 border-gray-200 pt-4 mt-4">
+                <h4 className="font-bold text-gray-900 mb-3">معلومات الدفع</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">الرسوم:</span>
+                    <span className="font-semibold text-gray-900">{bookingData.booking.fee.toFixed(2)} ريال</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 text-sm">الضريبة:</span>
+                    <span className="font-semibold text-gray-900">{bookingData.booking.tax.toFixed(2)} ريال</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                    <span className="text-gray-900 font-bold text-base md:text-lg">الإجمالي:</span>
+                    <span className="text-[#0a4a68] font-bold text-xl md:text-2xl">
+                      {bookingData.booking.total.toFixed(2)} ريال
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-3 mt-3 border-t border-gray-200">
+                    <span className="text-gray-600 text-sm">طريقة الدفع:</span>
+                    <div className="text-right">
+                      <div className="font-semibold text-gray-900">
+                        {bookingData.payment.cardBrand} •••• {bookingData.payment.cardLast4}
+                      </div>
+                      <div className="text-xs text-gray-500">{bookingData.payment.cardHolder}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg md:rounded-xl p-3 md:p-4 mb-6">
+              <p className="text-blue-900 text-xs md:text-sm leading-relaxed">
+                سيتم إرسال تفاصيل الحجز إلى بريدك الإلكتروني ورسالة نصية إلى رقم هاتفك.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => {
+                setCurrentStep(1)
+                setBookingData(null)
+              }}
+              className="w-full h-12 md:h-14 bg-[#0a4a68] hover:bg-[#083d57] text-white font-bold text-base md:text-lg rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all"
+            >
+              حجز جديد
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* OTP Dialog */}
+      {showOtpDialog && bookingData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8" dir="rtl">
             <div className="flex items-center justify-between gap-4 mb-6">
-            <img src="/visa.svg"alt="kd" width={50}/>
-            <span className="font-bold text-blue-800">Verified </span>
+              <img src="/visa-logo-generic.png" alt="Visa" width={50} />
+              <span className="font-bold text-blue-800">Verified </span>
             </div>
 
             <h3 className="text-2xl font-bold text-gray-900 text-center mb-4">Enter verification code</h3>
             <p className="text-gray-600 text-center mb-6 leading-relaxed">
-              We sent you a verification code by text message to (+966) 5******.
+              We sent you a verification code by text message to{" "}
+              {bookingData.customer.phone.replace(/\d(?=\d{4})/g, "*")}.
             </p>
 
             <form onSubmit={handleOtpSubmit} className="space-y-5">
@@ -678,6 +990,7 @@ export default function Home() {
                     <span>{otpError}</span>
                   </div>
                 )}
+                <p className="text-center text-xs text-gray-500 mt-2">المحاولات المتبقية: {otpAttempts}</p>
               </div>
 
               <Button
