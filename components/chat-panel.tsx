@@ -50,7 +50,7 @@ export function ChatPanel({ applicationId, currentUserId, currentUserName, curre
       })
       setNewMessage("")
     } catch (error) {
-      console.error("[v0] Error sending message:", error)
+      console.error(" Error sending message:", error)
     } finally {
       setIsSending(false)
     }
@@ -84,7 +84,7 @@ export function ChatPanel({ applicationId, currentUserId, currentUserName, curre
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-slate-50">
         <div>
           <h3 className="text-lg font-bold text-slate-900">الدردشة</h3>
-          <p className="text-sm text-slate-600">رقم الطلب: {applicationId.slice(0, 8)}</p>
+          <p className="text-sm text-slate-600">رقم الطلب: {applicationId?.slice(0, 8)}</p>
         </div>
         {onClose && (
           <Button onClick={onClose} variant="ghost" size="icon" className="text-slate-600 hover:text-slate-900">

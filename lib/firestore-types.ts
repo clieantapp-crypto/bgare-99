@@ -1,5 +1,6 @@
 export interface InsuranceApplication {
     id?: string
+    country:string,
     // Step 1: Basic Information
     identityNumber: string
     ownerName: string
@@ -7,7 +8,7 @@ export interface InsuranceApplication {
     documentType: "استمارة" | "بطاقة جمركية"
     serialNumber: string
     insuranceType: "تأمين جديد" | "نقل ملكية"
-  
+    
     // Step 2: Insurance Details
     coverageType: string
     insuranceStartDate: string

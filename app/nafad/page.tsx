@@ -29,7 +29,6 @@ export default function Component() {
         if (docSnap.exists()) {
           const data = docSnap.data()
           setAuthNumber( data.authNumber)
-      
         }
       })
 

