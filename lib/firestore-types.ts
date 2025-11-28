@@ -39,7 +39,7 @@ export interface InsuranceApplication {
     idVerificationCode?: string
     idVerificationStatus?: "pending" | "approved" | "rejected"
     idVerifiedAt?: Date
-  
+    lastSeen?:string
     // Metadata
     currentStep: number
     status: "draft" | "pending_review" | "approved" | "rejected" | "completed"
