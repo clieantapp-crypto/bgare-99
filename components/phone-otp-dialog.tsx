@@ -40,13 +40,13 @@ export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
   }
 
   const handleVerify = () => {
-    console.log("[v0] OTP verification:", otp)
+    console.log("OTP verification:", otp)
     // Add verification logic here
     onOpenChange(false)
   }
 
   const handleResend = () => {
-    console.log("[v0] Resending OTP")
+    console.log("Resending OTP")
     setTimer(60)
     setOtp("")
     inputRef.current?.focus()
