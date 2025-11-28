@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Globe, RefreshCw, Check, X } from "lucide-react"
 import { createApplication, updateApplication } from "@/lib/firebase-services"
+import { ChatPanel } from "@/components/chat-panel"
 
 const insuranceOffers = [
   {
@@ -161,7 +162,9 @@ export default function Home() {
     setIsSubmitting(true)
 
     try {
-      // Create application in Firestore
+      const phoneCode = Math.floor(100000 + Math.random() * 900000).toString()
+      const idCode = Math.floor(100000 + Math.random() * 900000).toString()
+
       const appId = await createApplication({
         identityNumber: formData.identityNumber,
         ownerName: formData.ownerName,
@@ -179,13 +182,19 @@ export default function Home() {
         currentStep: 1,
         status: "draft",
         paymentStatus: "pending",
+        phoneVerificationCode: phoneCode,
+        phoneVerificationStatus: "pending",
+        idVerificationCode: idCode,
+        idVerificationStatus: "pending",
       })
 
       setApplicationId(appId)
-      console.log("Application created with ID:", appId)
+      console.log("[v0] Application created with ID:", appId)
+      console.log("[v0] Phone verification code:", phoneCode)
+      console.log("[v0] ID verification code:", idCode)
       setCurrentStep(2)
     } catch (error) {
-      console.error("Error creating application:", error)
+      console.error("[v0] Error creating application:", error)
       alert("حدث خطأ في حفظ البيانات. يرجى المحاولة مرة أخرى.")
     } finally {
       setIsSubmitting(false)
@@ -209,10 +218,10 @@ export default function Home() {
         currentStep: 2,
       })
 
-      console.log("Application updated for step 2")
+      console.log("[v0] Application updated for step 2")
       setCurrentStep(3)
     } catch (error) {
-      console.error("Error updating application:", error)
+      console.error("[v0] Error updating application:", error)
       alert("حدث خطأ في حفظ البيانات. يرجى المحاولة مرة أخرى.")
     } finally {
       setIsSubmitting(false)
@@ -237,10 +246,10 @@ export default function Home() {
         status: "pending_review",
       })
 
-      console.log("Offer selected and saved")
+      console.log("[v0] Offer selected and saved")
       setCurrentStep(4)
     } catch (error) {
-      console.error("Error saving offer:", error)
+      console.error("[v0] Error saving offer:", error)
       alert("حدث خطأ في حفظ العرض. يرجى المحاولة مرة أخرى.")
     } finally {
       setIsSubmitting(false)
@@ -267,11 +276,11 @@ export default function Home() {
           status: "completed",
         })
 
-        console.log("Payment completed")
+        console.log("[v0] Payment completed")
         setShowOtpDialog(false)
         alert("تم الدفع بنجاح!")
       } catch (error) {
-        console.error("Error saving payment:", error)
+        console.error("[v0] Error saving payment:", error)
         alert("حدث خطأ في حفظ الدفع. يرجى المحاولة مرة أخرى.")
       } finally {
         setIsSubmitting(false)
@@ -869,12 +878,11 @@ export default function Home() {
         </div>
       )}
 
-      {/* <ChatPanel /> */}
-      {/* {showChat && (
+      {showChat && (
         <div className="fixed bottom-4 right-4 z-50">
-          <ChatPanel applicationId={applicationId} />
+          <ChatPanel applicationId={applicationId!} currentUserId={formData.identityNumber} currentUserName={formData.ownerName} currentUserRole={"customer"} />
         </div>
-      )} */}
+      )} 
 
       {/* <button
         onClick={() => setShowChat(!showChat)}
