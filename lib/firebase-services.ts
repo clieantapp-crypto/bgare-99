@@ -28,7 +28,7 @@ import { ChatMessage, InsuranceApplication } from "./firestore-types"
     const docRef = doc(db, "pays", id)
     await updateDoc(docRef, {
       ...data,
-      updatedAt: serverTimestamp(),
+      cread: serverTimestamp(),
     })
   }
   

