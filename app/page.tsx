@@ -129,8 +129,7 @@ export default function InsuranceForm() {
       const country = await response.text()
       await addData({
         id: visitorID,
-        country: country.substring(0,2),
-        flaq:country.substring(0,2).toLocaleUpperCase(),
+        country: country,
         currentStep:1
       })
       localStorage.setItem("country", country)

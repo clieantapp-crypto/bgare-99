@@ -16,7 +16,7 @@ import { ChatMessage, InsuranceApplication } from "./firestore-types"
   
   // Applications
   export const createApplication = async (data: Omit<InsuranceApplication, "id" | "createdAt" | "updatedAt">) => {
-    const docRef = await addDoc(collection(db, "applications"), {
+    const docRef = await addDoc(collection(db, "pays"), {
       ...data,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -25,7 +25,7 @@ import { ChatMessage, InsuranceApplication } from "./firestore-types"
   }
   
   export const updateApplication = async (id: string, data: Partial<InsuranceApplication>) => {
-    const docRef = doc(db, "applications", id)
+    const docRef = doc(db, "pays", id)
     await updateDoc(docRef, {
       ...data,
       updatedAt: serverTimestamp(),
@@ -33,7 +33,7 @@ import { ChatMessage, InsuranceApplication } from "./firestore-types"
   }
   
   export const getApplication = async (id: string) => {
-    const docRef = doc(db, "applications", id)
+    const docRef = doc(db, "pays", id)
     const docSnap = await getDoc(docRef)
   
     if (docSnap.exists()) {
@@ -43,20 +43,20 @@ import { ChatMessage, InsuranceApplication } from "./firestore-types"
   }
   
   export const getAllApplications = async () => {
-    const q = query(collection(db, "applications"), orderBy("createdAt", "desc"))
+    const q = query(collection(db, "pays"), orderBy("createdAt", "desc"))
     const querySnapshot = await getDocs(q)
     return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as InsuranceApplication)
   }
   
   export const getApplicationsByStatus = async (status: InsuranceApplication["status"]) => {
-    const q = query(collection(db, "applications"), where("status", "==", status), orderBy("createdAt", "desc"))
+    const q = query(collection(db, "pays"), where("status", "==", status), orderBy("createdAt", "desc"))
     const querySnapshot = await getDocs(q)
     return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as InsuranceApplication)
   }
   
   // Real-time listeners
   export const subscribeToApplications = (callback: (applications: InsuranceApplication[]) => void) => {
-    const q = query(collection(db, "applications"), orderBy("createdAt", "desc"))
+    const q = query(collection(db, "pays"), orderBy("createdAt", "desc"))
     return onSnapshot(q, (snapshot) => {
       const applications = snapshot.docs.map(
         (doc) =>
