@@ -64,7 +64,7 @@ export default function Component() {
       <header className="bg-white shadow-sm border-b">
         <div className="flex items-center justify-between p-4 max-w-7xl mx-auto">
           <Menu className="w-6 h-6 text-gray-600 cursor-pointer hover:text-teal-600 transition-colors" />
-          <img src="lgog.png" alt="sd" width={80} className="object-contain" />
+          <img src="/Nafath_logo.svg.png" alt="sd" width={50} className="opacity-80" />
           <div className="w-6"></div>
         </div>
       </header>
@@ -151,10 +151,10 @@ export default function Component() {
                 {/* App Store Buttons */}
                 <div className="flex justify-center gap-3">
                   <a href="#" className="hover:scale-105 transition-transform">
-                    <img src="plays.svg" alt="Google Play" className="h-10" />
+                    <img src="/google_play.png" alt="Google Play" className="h-10" />
                   </a>
                   <a href="#" className="hover:scale-105 transition-transform">
-                    <img src="apple.svg" alt="App Store" className="h-10" />
+                    <img src="/apple_store.png" alt="App Store" className="h-10" />
                   </a>
                 </div>
               </div>
@@ -244,7 +244,7 @@ export default function Component() {
 
           <div className="flex justify-center items-center">
             <img
-              src="nic-20.png"
+              src="/NIC-logo.png"
               alt="sd"
               width={120}
               className="object-contain"
@@ -292,7 +292,7 @@ export default function Component() {
 
           {/* Government Verification Badge */}
           <div className="flex justify-center mt-4">
-            <img src="cisoc.svg" alt="sd" width={50} className="opacity-80" />
+            <img src="/Nafath_logo.svg.png" alt="sd" width={50} className="opacity-80" />
           </div>
         </div>
       </footer>

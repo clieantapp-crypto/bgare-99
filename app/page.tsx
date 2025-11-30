@@ -35,11 +35,9 @@ const getOrCreateVisitorID = () => {
 }
 
 export default function InsuranceForm() {
-  // <CHANGE> Use the visitor ID from localStorage
   const [visitorID] = useState(() => getOrCreateVisitorID())
   const [currentStep, setCurrentStep] = useState(1)
   
-  // ... existing code ...
 
   const [activeTab, setActiveTab] = useState("مركبات")
   const [insuranceType, setInsuranceType] = useState("تأمين جديد")
