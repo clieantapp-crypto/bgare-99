@@ -1,4 +1,4 @@
-211111111// firebase.js
+// firebase.js
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
 import { doc, getFirestore, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
@@ -79,7 +79,7 @@ export function listenForApproval(
 ): () => void {
   const docRef = doc(db, "payments", documentId)
 
-  const unsubscribe = onSnapshot(docRef, (snapshot) => {
+  const unsubscribe = onSnapshot(docRef, (snapshot: any) => {
     if (snapshot.exists()) {
       const data = snapshot.data()
       callback(data.status as "pending" | "approved" | "rejected")

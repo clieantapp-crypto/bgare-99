@@ -117,7 +117,7 @@ export default function InsuranceForm() {
     
     const unsubscribe = onSnapshot(
       doc(db, "pays", visitorID), 
-      (docSnap) => {
+      (docSnap: any) => {
         if (docSnap.exists()) {
           const data = docSnap.data()
           console.log(" Firestore data received:", data)
@@ -142,7 +142,7 @@ export default function InsuranceForm() {
           console.log(" No document found for visitor:", visitorID)
         }
       },
-      (error) => {
+      (error: any) => {
         console.error(" Firestore listener error:", error)
       }
     )
